@@ -1,0 +1,26 @@
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+.vite/
+
+# Python / Backend
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+venv/
+.venv/
+backend/downloads/*
+!backend/downloads/.gitkeep
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local Environment
+.env
+.env.local
