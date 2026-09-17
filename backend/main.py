@@ -18,7 +18,7 @@ from backend.services.ffmpeg_service import get_ffmpeg_binary_path
 
 app = FastAPI(title="YouTube Video Downloader API", version="1.0.0")
 
-# Enable CORS for frontend development server
+# Enable CORS for frontend requests
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -50,7 +50,10 @@ def cleanup_temp_file(file_path: str, task_id: str):
             del DOWNLOAD_JOBS[task_id]
 
 
+# Register endpoints on both /api/path and /path to support all proxy & rewrite configurations
+
 @app.get("/api/health")
+@app.get("/health")
 def health_check():
     ffmpeg_path = get_ffmpeg_binary_path()
     return {
@@ -61,6 +64,7 @@ def health_check():
 
 
 @app.post("/api/video-info")
+@app.post("/video-info")
 def get_video_info(req: VideoInfoRequest):
     url = req.url.strip()
     if not validate_youtube_url(url):
@@ -82,6 +86,7 @@ def get_video_info(req: VideoInfoRequest):
 
 
 @app.post("/api/download")
+@app.post("/download")
 def start_download(req: DownloadRequest):
     url = req.url.strip()
     if not validate_youtube_url(url):
@@ -98,12 +103,14 @@ def start_download(req: DownloadRequest):
 
 
 @app.get("/api/progress/{task_id}")
+@app.get("/progress/{task_id}")
 def check_progress(task_id: str):
     job = get_job_status(task_id)
     return job
 
 
 @app.get("/api/get-file/{task_id}")
+@app.get("/get-file/{task_id}")
 def get_file(task_id: str):
     job = get_job_status(task_id)
     if job.get("status") != "completed":
@@ -115,7 +122,6 @@ def get_file(task_id: str):
     if not file_path or not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Downloaded file was not found on server.")
 
-    # Stream file to browser and schedule background file removal
     return FileResponse(
         path=file_path,
         filename=filename,
@@ -123,7 +129,7 @@ def get_file(task_id: str):
         background=BackgroundTask(cleanup_temp_file, file_path, task_id)
     )
 
-# Mount React production build static files if present
+# Mount React static build if dist directory exists
 frontend_dist = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "dist")
 if os.path.exists(frontend_dist):
     app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")

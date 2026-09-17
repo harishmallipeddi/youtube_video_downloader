@@ -11,7 +11,12 @@ from backend.utils.sanitize import sanitize_filename
 DOWNLOAD_JOBS: Dict[str, Dict[str, Any]] = {}
 JOBS_LOCK = threading.Lock()
 
-DOWNLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "downloads")
+# Serverless writable directory check (/tmp for Vercel / AWS Lambda)
+if os.name != "nt" and os.path.exists("/tmp"):
+    DOWNLOAD_DIR = "/tmp/downloads"
+else:
+    DOWNLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "downloads")
+
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 
@@ -35,6 +40,7 @@ def extract_video_metadata(url: str) -> Dict[str, Any]:
         'skip_download': True,
         'quiet': True,
         'no_warnings': True,
+        'cachedir': '/tmp/.yt-dlp-cache' if os.name != 'nt' else False,
     }
     if ffmpeg_path:
         ydl_opts['ffmpeg_location'] = ffmpeg_path
@@ -152,17 +158,17 @@ def _run_download_thread(task_id: str, url: str, format_id: str, requested_ext: 
 
     output_template = os.path.join(DOWNLOAD_DIR, f"{task_id}_%(title)s.%(ext)s")
     
-    # Highly optimized yt-dlp options for maximum download speed
     ydl_opts: Dict[str, Any] = {
         'format': format_id if format_id else 'bestvideo+bestaudio/best',
         'outtmpl': output_template,
         'progress_hooks': [hook],
         'quiet': True,
         'no_warnings': True,
-        'concurrent_fragment_downloads': 8,  # Downloads fragments in parallel (5x-10x speedup!)
+        'concurrent_fragment_downloads': 8,
         'buffersize': 1024 * 1024,
         'http_chunk_size': 10485760,
         'nocheckcertificate': True,
+        'cachedir': '/tmp/.yt-dlp-cache' if os.name != 'nt' else False,
         'merge_output_format': 'mp4' if requested_ext == 'mp4' else requested_ext,
     }
 

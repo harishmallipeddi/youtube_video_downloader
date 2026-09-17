@@ -1,7 +1,7 @@
 import sys
 import os
 
-# Ensure backend root directory is on Python path for Vercel serverless functions
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Insert project root into sys.path for Vercel Serverless Function module resolution
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.main import app
