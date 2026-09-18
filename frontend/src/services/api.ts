@@ -7,6 +7,7 @@ export interface AvailableFormat {
   format_id: string;
   ext: string;
   label: string;
+  direct_url?: string | null;
 }
 
 export interface VideoInfo {

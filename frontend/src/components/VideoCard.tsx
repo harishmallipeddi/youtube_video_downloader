@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { VideoInfo, AvailableFormat } from '../services/api';
-import { Download, Clock, User, Film, Music } from 'lucide-react';
+import { Download, Clock, User, Film, Music, ExternalLink } from 'lucide-react';
 
 interface VideoCardProps {
   videoInfo: VideoInfo;
@@ -48,6 +48,17 @@ export const VideoCard: React.FC<VideoCardProps> = ({
   };
 
   const handleDownloadClick = () => {
+    // If a direct stream URL exists, trigger instant browser download/open
+    if (selectedQuality.direct_url) {
+      const a = document.createElement('a');
+      a.href = selectedQuality.direct_url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.download = `${videoInfo.title}.${selectedExt}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
     onStartDownload(selectedQuality.format_id, selectedExt);
   };
 
@@ -127,15 +138,30 @@ export const VideoCard: React.FC<VideoCardProps> = ({
             </div>
           </div>
 
-          {/* Action Button */}
-          <button
-            onClick={handleDownloadClick}
-            disabled={isDownloading}
-            className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:from-red-500 hover:to-rose-500 text-white font-bold py-4 px-6 rounded-2xl shadow-xl shadow-red-600/30 transition-all duration-300 transform active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed text-base"
-          >
-            <Download className="w-5 h-5" />
-            <span>{isDownloading ? 'Processing Download...' : 'Download Video'}</span>
-          </button>
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <button
+              onClick={handleDownloadClick}
+              disabled={isDownloading}
+              className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-red-600 via-rose-600 to-red-600 hover:from-red-500 hover:to-rose-500 text-white font-bold py-4 px-6 rounded-2xl shadow-xl shadow-red-600/30 transition-all duration-300 transform active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed text-base"
+            >
+              <Download className="w-5 h-5" />
+              <span>{isDownloading ? 'Processing Download...' : 'Download Video'}</span>
+            </button>
+
+            {selectedQuality.direct_url && (
+              <a
+                href={selectedQuality.direct_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-200 font-semibold py-4 px-5 rounded-2xl border border-slate-600 transition-colors text-sm whitespace-nowrap"
+                title="Direct Media Stream"
+              >
+                <ExternalLink className="w-4 h-4 text-emerald-400" />
+                <span>Direct Stream</span>
+              </a>
+            )}
+          </div>
         </div>
       </div>
     </div>

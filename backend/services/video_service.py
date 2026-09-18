@@ -34,7 +34,7 @@ def format_duration(seconds: float | int | None) -> str:
 
 
 def extract_video_metadata(url: str) -> Dict[str, Any]:
-    """Fetch video metadata and parse distinct available resolutions and qualities."""
+    """Fetch video metadata and parse distinct available resolutions, qualities, and direct stream URLs."""
     ffmpeg_path = get_ffmpeg_binary_path()
     ydl_opts: Dict[str, Any] = {
         'skip_download': True,
@@ -67,6 +67,7 @@ def extract_video_metadata(url: str) -> Dict[str, Any]:
                 height = f.get('height')
                 ext = f.get('ext', 'mp4')
                 format_id = f.get('format_id')
+                direct_stream_url = f.get('url')
                 
                 if acodec != 'none':
                     has_audio = True
@@ -82,7 +83,8 @@ def extract_video_metadata(url: str) -> Dict[str, Any]:
                             "format_id": f"bestvideo[height<={height}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={height}]+bestaudio/best[height<={height}]/best",
                             "ext": "mp4",
                             "height": height,
-                            "label": f"{res_label} (MP4){size_str}"
+                            "label": f"{res_label} (MP4){size_str}",
+                            "direct_url": direct_stream_url if acodec != 'none' else None
                         }
 
             # Sort qualities high-to-low (1080p -> 720p -> 480p -> 360p)
@@ -93,7 +95,8 @@ def extract_video_metadata(url: str) -> Dict[str, Any]:
                     "quality": q["quality"],
                     "format_id": q["format_id"],
                     "ext": q["ext"],
-                    "label": q["label"]
+                    "label": q["label"],
+                    "direct_url": q.get("direct_url")
                 }
                 for q in sorted_qualities
             ]
@@ -103,7 +106,8 @@ def extract_video_metadata(url: str) -> Dict[str, Any]:
                     "quality": "Best Available",
                     "format_id": "bestvideo+bestaudio/best",
                     "ext": "mp4",
-                    "label": "Best Quality (MP4)"
+                    "label": "Best Quality (MP4)",
+                    "direct_url": None
                 })
 
             if has_audio:
@@ -111,7 +115,8 @@ def extract_video_metadata(url: str) -> Dict[str, Any]:
                     "quality": "Audio Only",
                     "format_id": "bestaudio/best",
                     "ext": "mp3",
-                    "label": "Audio Only (MP3)"
+                    "label": "Audio Only (MP3)",
+                    "direct_url": None
                 })
 
             return {
@@ -216,7 +221,7 @@ def _run_download_thread(task_id: str, url: str, format_id: str, requested_ext: 
 
 
 def create_download_job(url: str, format_id: str, ext: str) -> str:
-    """Initialize a non-blocking background download task."""
+    """Initialize a download task."""
     task_id = str(uuid.uuid4())
     with JOBS_LOCK:
         DOWNLOAD_JOBS[task_id] = {
@@ -228,8 +233,14 @@ def create_download_job(url: str, format_id: str, ext: str) -> str:
             "error": ""
         }
     
+    # On serverless (Vercel / Linux Lambda), execute task synchronously or thread
     t = threading.Thread(target=_run_download_thread, args=(task_id, url, format_id, ext), daemon=True)
     t.start()
+
+    # If on Vercel/serverless Linux, wait briefly for fast formats
+    if os.name != "nt" and os.path.exists("/tmp"):
+        t.join(timeout=8)
+
     return task_id
 
 
